@@ -82,6 +82,7 @@ Nenhum teste faz chamada de rede real. A simulação é aleatória, então os te
 `seed` para garantir determinismo e verificam separadamente as **propriedades estatísticas**
 do resultado — a soma das probabilidades de título dá 100%, um líder isolado tem mais chance
 que o lanterna, nenhuma probabilidade escapa do intervalo 0–100.
+Testando a main.. 
 
 ## Limitações conhecidas
 
