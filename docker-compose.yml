@@ -41,5 +41,20 @@ services:
     env_file: .env
     depends_on: [db, redis]
 
+  # Ferramenta de desenvolvimento: sobe apenas com --profile tools
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports: ["5055:80"]
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      db: {condition: service_healthy}
+    profiles: ["tools"]
+
 volumes:
   pgdata:
+  pgadmin_data:
