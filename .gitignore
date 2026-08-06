@@ -17,3 +17,6 @@ staticfiles/
 
 # Arquivos PDF de apoio
 *.pdf
+
+# Claude.md
+CLAUDE.md
