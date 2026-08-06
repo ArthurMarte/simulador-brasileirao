@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+*.sqlite3
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+staticfiles/
+.DS_Store
+.idea/
+.vscode/
+
+
+# Arquivos PDF de apoio
+*.pdf
