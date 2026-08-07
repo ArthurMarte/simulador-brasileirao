@@ -1,35 +1,76 @@
+# WORKFLOW: este arquivo inteiro. Um processo automatizado que o GitHub le
+# sozinho e executa. Fica em .github/workflows/ - e onde o GitHub procura.
+# Explicacao completa em docs/ci-cd-explicado.pdf
+
+# NAME: rotulo que aparece na aba "Actions" do GitHub. Nao afeta a execucao.
+
+# CI - Continuous Integration = integracao continua. 
+#(e o que este workflow faz: roda testes e confere padrao de codigo a cada commit)
+
+# CD = Continuous Delivery/Deployment
 name: CI/CD
 
+# ON: o gatilho. Define QUANDO o workflow roda.
 on:
+  # push = quando voce envia commits para a branch listada.
   push:
-    branches: [main, develop]
+    branches: [main]
+  # pull_request = quando um PR que aponta para essa branch e aberto ou atualizado.
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
+# JOBS: os blocos de trabalho. Cada job roda numa maquina virtual separada e
+# vazia. Por padrao rodam em paralelo, a menos que voce declare dependencia.
 jobs:
+  # LINT = conferir se o codigo segue o padrao de formatacao (indentacao, aspas,
+  # imports nao usados). Nao executa nada, so le e reclama. Quem faz isso aqui
+  # e o ruff.
   lint:
+    # NAME: rotulo do job na interface.
     name: Lint
+    # RUNS-ON: qual maquina virtual executa. ubuntu-latest e a padrao.
     runs-on: ubuntu-latest
+    # STEPS: os passos do job, em sequencia, na mesma maquina.
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # USES: usa uma acao pronta, feita por outra pessoa. O @v4 e a versao.
+      # checkout baixa o seu codigo para dentro da maquina.
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+      
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        # WITH: os parametros que a acao recebe.
         with:
           python-version: "3.12"
-      - run: pip install ruff==0.8.4
-      - run: ruff check .
+      # RUN: executa um comando no terminal da maquina.
+      # Instala o ruff, que e o linter que vai verificar o padrao do codigo.
+      - name: Instalar o ruff
+        run: pip install ruff==0.8.4
+
+      - name: Verificar formatacao do codigo
+        run: ruff check .
 
   test:
     name: Testes + Cobertura
     runs-on: ubuntu-latest
+    # NEEDS: dependencia entre jobs. Este so comeca depois que o lint terminar bem.
     needs: lint
+
+    # SERVICES: containers auxiliares que sobem junto com o job e morrem no fim.
+    # Aqui: um Postgres e um Redis temporarios, so para os testes.
     services:
       db:
+        # IMAGE: qual imagem Docker subir.
         image: postgres:16-alpine
+        # ENV do service: configuracao do proprio container.
         env:
           POSTGRES_DB: test_db
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+        # PORTS: expoe a porta do container para a maquina do job.
         ports: ["5432:5432"]
+        # OPTIONS: parametros extras do Docker. Aqui, o healthcheck - o job so
+        # comeca quando o banco responder que esta pronto para conexao.
         options: >-
           --health-cmd pg_isready
           --health-interval 5s
@@ -39,6 +80,9 @@ jobs:
         image: redis:7-alpine
         ports: ["6379:6379"]
 
+    # ENV: variaveis de ambiente disponiveis para todos os steps deste job.
+    # A maquina e vazia e o .env nao existe nela, entao e aqui que a aplicacao
+    # recebe a configuracao de que precisa.
     env:
       SECRET_KEY: chave-de-teste
       DEBUG: "False"
@@ -47,41 +91,64 @@ jobs:
       FOOTBALL_DATA_TOKEN: token-falso-para-testes
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          # CACHE: guarda as bibliotecas baixadas entre execucoes.
           cache: pip
-      - run: pip install -r requirements-dev.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements-dev.txt
+
+      # NAME dentro de um step: descricao que aparece no log.
       - name: Rodar testes (gate de 80% de cobertura)
         run: pytest
-      - uses: actions/upload-artifact@v4
+
+      # ARTIFACT: arquivo gerado no job que fica disponivel para download.
+      - name: Guardar relatorio de cobertura
+        uses: actions/upload-artifact@v4
+        # IF: condicao. always() = roda mesmo se um step anterior falhou.
         if: always()
         with:
           name: coverage
           path: coverage.xml
 
+  # DEPLOY = publicar a aplicacao no servidor.
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     needs: test
+    # IF no job: so executa se a condicao for verdadeira. Aqui, duas ao mesmo tempo.
+    # github.ref = a branch atual. github.event_name = o gatilho que disparou.
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
 
-      # Descomente conforme a plataforma escolhida.
+      # Comentado ate a plataforma de deploy ser escolhida.
+      # SECRETS: valores criptografados guardados no GitHub, em
+      # Settings > Secrets and variables > Actions. Nunca ficam no codigo.
       #
-      # Fly.io:
-      # - uses: superfly/flyctl-actions/setup-flyctl@master
-      # - run: flyctl deploy --remote-only
+      # - name: Instalar a CLI do Fly.io
+      #   uses: superfly/flyctl-actions/setup-flyctl@master
+      #
+      # - name: Publicar a aplicacao
+      #   run: flyctl deploy --remote-only
       #   env:
       #     FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-      # - run: flyctl ssh console -C "python manage.py migrate --noinput"
+      #
+      # - name: Aplicar migrations em producao
+      #   run: flyctl ssh console -C "python manage.py migrate --noinput"
 
       - name: Placeholder
         run: echo "Configure a plataforma de deploy aqui"
 
-      # Smoke test: falha o pipeline se a aplicação não subiu
+      # SMOKE TEST: requisicao simples que confirma que a aplicacao respondeu
+      # depois da publicacao. Se nao responder, o pipeline fica vermelho.
       # - name: Smoke test
       #   run: |
       #     sleep 20

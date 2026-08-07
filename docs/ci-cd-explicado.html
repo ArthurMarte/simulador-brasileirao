@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Entendendo o ci.yml — do zero ao pipeline</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: "Georgia", "Times New Roman", serif;
+    font-size: 10.5pt; line-height: 1.55; color: #1a1a1a; margin: 0;
+  }
+
+  h1, h2, h3, h4 { font-family: "Segoe UI", Arial, sans-serif; color: #0f2f4f; }
+  h1 { font-size: 22pt; margin: 0 0 4pt; line-height: 1.2; }
+  h2 {
+    font-size: 15pt; margin: 26pt 0 8pt; padding-bottom: 4pt;
+    border-bottom: 2px solid #0f2f4f; page-break-after: avoid;
+  }
+  h3 { font-size: 12pt; margin: 16pt 0 5pt; page-break-after: avoid; }
+  h4 { font-size: 10.5pt; margin: 12pt 0 3pt; color: #34495e; page-break-after: avoid; }
+  p { margin: 0 0 8pt; text-align: justify; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin-bottom: 4pt; }
+
+  code {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 9pt; background: #eef2f6; padding: 1px 4px;
+    border-radius: 3px; color: #16324a;
+  }
+  pre {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 8.5pt; line-height: 1.45; background: #f6f8fa;
+    border: 1px solid #dfe4ea; border-left: 3px solid #0f2f4f;
+    padding: 8pt 10pt; margin: 8pt 0; overflow-x: auto;
+    page-break-inside: avoid; white-space: pre-wrap;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; color: #1a1a1a; }
+  .cmt { color: #6a8759; font-style: italic; }
+  .key { color: #0b5394; font-weight: bold; }
+
+  table {
+    width: 100%; border-collapse: collapse; margin: 8pt 0;
+    font-size: 9.5pt; page-break-inside: avoid;
+  }
+  th {
+    background: #0f2f4f; color: #fff; text-align: left;
+    padding: 5pt 7pt; font-family: "Segoe UI", Arial, sans-serif; font-size: 9pt;
+  }
+  td { border-bottom: 1px solid #dfe4ea; padding: 5pt 7pt; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafbfc; }
+
+  .box {
+    border-left: 3px solid #b8860b; background: #fdf9ee;
+    padding: 8pt 11pt; margin: 10pt 0; page-break-inside: avoid;
+  }
+  .box.warn { border-left-color: #c0392b; background: #fdf0ee; }
+  .box.ok { border-left-color: #1e7e34; background: #eefaf1; }
+  .box p:last-child { margin-bottom: 0; }
+  .box .t {
+    font-family: "Segoe UI", Arial, sans-serif; font-weight: bold;
+    font-size: 9.5pt; display: block; margin-bottom: 3pt; color: #0f2f4f;
+  }
+
+  .capa {
+    text-align: center; padding-top: 55mm; page-break-after: always;
+  }
+  .capa .sub { font-size: 13pt; color: #52616b; margin-top: 6pt; font-style: italic; }
+  .capa .meta {
+    margin-top: 40mm; font-size: 10pt; color: #52616b;
+    border-top: 1px solid #dfe4ea; padding-top: 10pt;
+    display: inline-block; min-width: 60%;
+  }
+
+  .toc { page-break-after: always; }
+  .toc ol { padding-left: 16pt; font-family: "Segoe UI", Arial, sans-serif; font-size: 10pt; }
+  .toc > ol > li { margin-bottom: 6pt; font-weight: bold; color: #0f2f4f; }
+  .toc ol ol { padding-left: 14pt; margin-top: 3pt; }
+  .toc ol ol li { font-weight: normal; color: #34495e; font-size: 9.5pt; }
+
+  .quebra { page-break-before: always; }
+  .lead {
+    font-size: 11pt; color: #34495e; font-style: italic;
+    border-left: 3px solid #dfe4ea; padding-left: 10pt; margin-bottom: 14pt;
+  }
+  .fim {
+    margin-top: 26pt; padding-top: 8pt; border-top: 1px solid #dfe4ea;
+    font-size: 9pt; color: #7a8791; text-align: center; font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<div class="capa">
+  <h1>Entendendo o <code style="font-size:18pt">ci.yml</code></h1>
+  <div class="sub">Integração e Entrega Contínua explicadas do zero,<br>linha a linha</div>
+  <div class="meta">
+    Material de apoio ao projeto<br>
+    <strong>Simulador Probabilístico do Campeonato Brasileiro</strong><br><br>
+    Django · GitHub Actions · PostgreSQL · pytest
+  </div>
+</div>
+
+<div class="toc">
+<h2 style="margin-top:0">Sumário</h2>
+<ol>
+  <li>Para que serve este documento</li>
+  <li>O que é CI/CD
+    <ol>
+      <li>O problema que existia antes</li>
+      <li>A analogia do porteiro</li>
+      <li>Onde isso mora</li>
+    </ol>
+  </li>
+  <li>YAML em cinco minutos
+    <ol>
+      <li>Chave e valor</li>
+      <li>Listas</li>
+      <li>Aninhamento pela indentação</li>
+      <li>Textos de várias linhas</li>
+      <li>Os três erros que todo mundo comete</li>
+    </ol>
+  </li>
+  <li>O vocabulário do GitHub Actions</li>
+  <li>A regra invisível: código de saída</li>
+  <li>Anatomia do nosso <code>ci.yml</code>
+    <ol>
+      <li>Cabeçalho e gatilhos</li>
+      <li>Job 1 — Lint</li>
+      <li>Job 2 — Testes e cobertura</li>
+      <li>Job 3 — Deploy</li>
+    </ol>
+  </li>
+  <li>Construindo um pipeline do zero</li>
+  <li>Quando fica vermelho</li>
+  <li>Referência rápida</li>
+</ol>
+</div>
+
+<h2>1. Para que serve este documento</h2>
+
+<p class="lead">Ver um pipeline funcionar e saber escrever um são coisas diferentes. Este
+documento existe para fechar essa distância.</p>
+
+<p>Você já tem um arquivo <code>ci.yml</code> funcionando no seu repositório. Ele roda,
+fica verde, bloqueia merge quando algo quebra. Mas se amanhã alguém pedir para você
+configurar CI num projeto novo, do zero, provavelmente você travaria — porque entender um
+arquivo pronto é reconhecimento, e escrever um do zero é produção. São habilidades
+distintas.</p>
+
+<p>Então o documento faz duas coisas. Primeiro, explica <strong>cada pedaço</strong> do
+arquivo que você já tem, sem pular nada por parecer óbvio. Depois, na seção 7, reconstrói
+um pipeline equivalente <strong>do zero</strong>, em cinco etapas, cada uma adicionando uma
+capacidade. Se você acompanhar essa segunda parte digitando junto num repositório de
+testes, sai sabendo fazer.</p>
+
+<p>Pressuposto: você sabe usar o terminal e o git no básico, e não sabe nada de CI. Nenhum
+conhecimento prévio de YAML, Docker ou GitHub Actions é assumido.</p>
+
+<h2>2. O que é CI/CD</h2>
+
+<h3>2.1 O problema que existia antes</h3>
+
+<p>Imagine uma equipe de cinco pessoas mexendo no mesmo projeto. Cada uma trabalha na sua
+máquina, com sua versão do Python, suas bibliotecas instaladas ao longo de meses, seu banco
+local com dados de teste antigos. Na sexta-feira, todo mundo junta o código.</p>
+
+<p>O que acontece é previsível: o código de A depende de uma biblioteca que só existe na
+máquina de A. O teste de B passa porque o banco dele tem um registro que ninguém mais tem. O
+de C nem foi executado, porque rodar a suíte inteira demora oito minutos e ele estava com
+pressa. A frase que define esse mundo é <em>"na minha máquina funciona"</em>.</p>
+
+<p>O problema não é preguiça — é que a verificação depende de disciplina humana, e disciplina
+humana falha sob pressão. A solução foi tirar a verificação das pessoas e dar para uma
+máquina que não tem pressa, não tem sexta-feira e não tem máquina configurada de
+qualquer jeito.</p>
+
+<p><strong>Integração Contínua (CI)</strong> é isso: a cada envio de código, um servidor
+limpo baixa o projeto do zero, instala tudo do zero, e roda as verificações. Se qualquer uma
+falhar, ele avisa em minutos.</p>
+
+<p><strong>Entrega Contínua (CD)</strong> é o passo seguinte: se todas as verificações
+passaram, o mesmo servidor publica o código em produção automaticamente. Sem ninguém
+copiando arquivo, sem ninguém lembrando de rodar a migration.</p>
+
+<h3>2.2 A analogia do porteiro</h3>
+
+<div class="box">
+<span class="t">A imagem que vale guardar</span>
+<p>Pense num porteiro de prédio. Todo código que quer entrar no projeto passa por ele, sem
+exceção. O porteiro confere uma lista: <em>o código está formatado no padrão? Os testes
+passam? A cobertura está acima de 80%?</em> Se qualquer resposta for "não", o código fica na
+porta. Se tudo passa, o próprio porteiro leva o pacote até o servidor de produção.</p>
+</div>
+
+<p>Essa analogia carrega três ideias importantes. <strong>O porteiro é inflexível</strong> —
+ele não abre exceção porque você está com pressa; é justamente por isso que ele funciona.
+<strong>Ele confere em ordem</strong>, e para no primeiro problema, porque não faz sentido
+rodar dez minutos de teste num código que sequer está formatado. E <strong>ele é o mesmo
+para todo mundo</strong>: não existe "na máquina do porteiro funciona".</p>
+
+<h3>2.3 Onde isso mora</h3>
+
+<p>Na prática, o porteiro é um arquivo de texto dentro do seu próprio repositório, na pasta
+<code>.github/workflows/</code>. O GitHub lê esse arquivo automaticamente e executa o que
+estiver escrito nele.</p>
+
+<p>Repare no que isso significa: <strong>não existe painel de configuração</strong>. Não
+existe servidor para instalar. A configuração do seu processo de qualidade é código
+versionado, que passa por revisão em pull request como qualquer outro arquivo, e cujo
+histórico de mudanças você consegue auditar com <code>git log</code>. Se alguém afrouxar uma
+regra, fica registrado quem foi e quando.</p>
+
+<h2 class="quebra">3. YAML em cinco minutos</h2>
+
+<p>O arquivo é escrito em YAML — um formato de configuração feito para ser lido por humanos.
+Ele tem pouquíssimas regras, e você precisa de todas elas.</p>
+
+<h3>3.1 Chave e valor</h3>
+
+<p>A unidade básica é <code>chave: valor</code>. O espaço depois dos dois-pontos é
+obrigatório.</p>
+
+<pre><code>name: CI/CD
+runs-on: ubuntu-latest</code></pre>
+
+<h3>3.2 Listas</h3>
+
+<p>Itens de uma lista começam com hífen e espaço. Há também a forma compacta, entre
+colchetes — as duas são idênticas para o computador.</p>
+
+<pre><code><span class="cmt"># forma expandida</span>
+branches:
+  - main
+  - develop
+
+<span class="cmt"># forma compacta — mesma coisa</span>
+branches: [main, develop]</code></pre>
+
+<h3>3.3 Aninhamento pela indentação</h3>
+
+<p>Aqui está o ponto que confunde todo iniciante: em YAML, <strong>o recuo define a
+estrutura</strong>. Não há chaves nem parênteses delimitando blocos, como em JSON ou
+Python. O que está mais recuado pertence ao que está acima e menos recuado.</p>
+
+<pre><code>jobs:                      <span class="cmt"># chave de primeiro nível</span>
+  lint:                    <span class="cmt"># 2 espaços → é filho de "jobs"</span>
+    runs-on: ubuntu-latest <span class="cmt"># 4 espaços → é filho de "lint"</span>
+    steps:                 <span class="cmt"># 4 espaços → também filho de "lint"</span>
+      - run: echo "oi"     <span class="cmt"># 6 espaços → item da lista "steps"</span></code></pre>
+
+<p>Leia esse bloco como uma árvore: existe um <code>jobs</code>; dentro dele um job chamado
+<code>lint</code>; dentro do <code>lint</code>, duas configurações. A hierarquia inteira é
+comunicada por espaço em branco.</p>
+
+<h3>3.4 Textos de várias linhas</h3>
+
+<p>Dois operadores aparecem no seu arquivo. O <code>|</code> (barra vertical) preserva as
+quebras de linha — use para escrever vários comandos de shell:</p>
+
+<pre><code>- name: Smoke test
+  run: |
+    sleep 20
+    curl -sf https://meu-app.fly.dev/api/health/</code></pre>
+
+<p>O <code>&gt;-</code> faz o contrário: junta tudo numa linha só. Serve para quebrar um
+texto longo por legibilidade sem realmente quebrá-lo:</p>
+
+<pre><code>options: &gt;-
+  --health-cmd pg_isready
+  --health-interval 5s</code></pre>
+
+<p>O que o Docker recebe ali é <code>--health-cmd pg_isready --health-interval 5s</code>,
+numa linha. As quebras existiam só para o seu olho.</p>
+
+<h3>3.5 Os três erros que todo mundo comete</h3>
+
+<table>
+<tr><th style="width:34%">Erro</th><th>Por quê</th></tr>
+<tr>
+  <td><strong>Usar TAB para indentar</strong></td>
+  <td>YAML proíbe tabulação. Só espaço. O erro é <code>found character '\t' that cannot start any token</code>. Configure seu editor para converter TAB em espaços.</td>
+</tr>
+<tr>
+  <td><strong>Recuo inconsistente</strong></td>
+  <td>Misturar 2 e 4 espaços no mesmo nível quebra a estrutura. Escolha 2 e mantenha.</td>
+</tr>
+<tr>
+  <td><strong>Esquecer aspas em valores especiais</strong></td>
+  <td><code>python-version: 3.10</code> vira o número 3.1 — o zero final é descartado. Escreva <code>"3.10"</code>. Vale também para <code>on</code> e <code>off</code>, que viram <code>true</code> e <code>false</code>.</td>
+</tr>
+</table>
+
+<div class="box ok">
+<span class="t">Dica prática</span>
+<p>Instale a extensão <strong>YAML</strong> (da Red Hat) no VS Code. Ela conhece o esquema do
+GitHub Actions e sublinha erro de indentação e nome de campo inválido enquanto você digita
+— antes de commitar e esperar dois minutos para descobrir.</p>
+</div>
+
+<h2 class="quebra">4. O vocabulário do GitHub Actions</h2>
+
+<p>Sete palavras. Se você entender essas, o arquivo inteiro deixa de ser opaco.</p>
+
+<table>
+<tr><th style="width:24%">Termo</th><th>O que é</th></tr>
+<tr><td><strong>Workflow</strong></td><td>O arquivo inteiro. Um processo automatizado completo. Você pode ter vários no mesmo repositório — um para CI, outro para publicar documentação, outro que roda de madrugada.</td></tr>
+<tr><td><strong>Trigger</strong><br><code>on:</code></td><td>O que dispara o workflow: um push, a abertura de um pull request, um horário fixo, ou um clique manual.</td></tr>
+<tr><td><strong>Job</strong></td><td>Um bloco de trabalho. Cada job roda numa <em>máquina virtual separada e limpa</em>. Por padrão, jobs rodam em paralelo — a menos que você declare dependência.</td></tr>
+<tr><td><strong>Step</strong></td><td>Um passo dentro de um job. Steps rodam em sequência, na mesma máquina, e compartilham o disco.</td></tr>
+<tr><td><strong>Runner</strong></td><td>A máquina virtual que executa. <code>ubuntu-latest</code> é a padrão, e é gratuita e ilimitada em repositório público.</td></tr>
+<tr><td><strong>Action</strong><br><code>uses:</code></td><td>Um passo pronto, escrito por outra pessoa e reutilizado por você. <code>actions/checkout@v4</code> baixa o seu código para dentro do runner.</td></tr>
+<tr><td><strong>Secret</strong></td><td>Senha ou token guardado criptografado nas configurações do repositório. Nunca aparece no código nem nos logs.</td></tr>
+<tr><td><strong>Service container</strong></td><td>Um banco de dados ou Redis temporário que sobe só durante aquele job e morre no fim.</td></tr>
+<tr><td><strong>Gate</strong></td><td>Uma condição que, ao falhar, derruba o pipeline inteiro. Ex.: cobertura abaixo de 80%.</td></tr>
+</table>
+
+<h3>A diferença entre <code>uses:</code> e <code>run:</code></h3>
+
+<p>Todo step é uma coisa ou outra, nunca as duas.</p>
+
+<pre><code>- uses: actions/checkout@v4   <span class="cmt"># executa uma ação pronta de terceiros</span>
+- run: pytest                 <span class="cmt"># executa um comando no shell do runner</span></code></pre>
+
+<p>Quando uma action precisa de parâmetros, eles vêm num bloco <code>with:</code>:</p>
+
+<pre><code>- uses: actions/setup-python@v5
+  with:
+    python-version: "3.12"</code></pre>
+
+<p>O <code>@v4</code> no fim do nome é a versão. Fixá-la importa: sem isso, uma atualização
+feita por terceiros poderia mudar o comportamento do seu pipeline sem você ter tocado em
+nada.</p>
+
+<h3>Máquina limpa, sempre</h3>
+
+<div class="box">
+<span class="t">Um detalhe que explica metade dos erros de CI</span>
+<p>Cada job começa numa máquina <strong>zerada</strong>: sem o seu código, sem suas
+bibliotecas, sem o seu <code>.env</code>. É por isso que todo job começa com
+<code>actions/checkout</code> — sem ele, o runner nem sabe o que é o seu projeto. E é por
+isso que qualquer coisa que só existe no seu computador simplesmente não existe lá.</p>
+<p>Essa aspereza é a razão de o CI ser confiável. Se passa numa máquina zerada, passa em
+qualquer lugar.</p>
+</div>
+
+<h2>5. A regra invisível: código de saída</h2>
+
+<p>Existe um mecanismo que o arquivo nunca menciona e do qual tudo depende.</p>
+
+<p>Todo programa de terminal, ao encerrar, devolve um número ao sistema operacional. Por
+convenção universal: <strong>zero significa sucesso</strong>, e qualquer outro número
+significa falha. Isso é anterior ao GitHub, ao Git e à internet — vem do Unix.</p>
+
+<p>O GitHub Actions apenas obedece a essa convenção. A regra completa é:</p>
+
+<div class="box warn">
+<span class="t">A regra</span>
+<p>Se um comando <code>run:</code> termina com código diferente de zero, <strong>o step
+falha</strong>. Se um step falha, <strong>o job falha</strong>. Se um job falha, os jobs que
+dependem dele <strong>nem chegam a rodar</strong>, e o pipeline fica vermelho.</p>
+</div>
+
+<p>Isso explica por que o seu arquivo não tem nenhuma configuração dizendo "falhe se os
+testes falharem". O <code>pytest</code> já sai com código 1 quando algum teste quebra. O
+<code>ruff</code> já sai com código 1 quando encontra problema de formatação. O GitHub só
+está lendo esse número.</p>
+
+<p>A consequência prática é libertadora: <strong>qualquer verificação que você consiga
+rodar no terminal, você consegue colocar no CI.</strong> Não precisa existir uma "action"
+para isso. Se o comando retorna zero quando está tudo bem, ele já serve como porteiro.</p>
+
+<h2 class="quebra">6. Anatomia do nosso <code>ci.yml</code></h2>
+
+<p>Agora, o arquivo real, bloco por bloco.</p>
+
+<h3>6.1 Cabeçalho e gatilhos</h3>
+
+<pre><code><span class="key">name</span>: CI/CD
+
+<span class="key">on</span>:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]</code></pre>
+
+<p>O <code>name</code> é só o rótulo que aparece na aba <strong>Actions</strong> do GitHub.
+Não tem efeito nenhum na execução.</p>
+
+<p>O <code>on</code> define <strong>quando</strong> o workflow roda, e aqui há duas situações
+distintas:</p>
+
+<ul>
+  <li><code>push</code> — quando você envia commits para <code>main</code> ou
+  <code>develop</code>. É o que acontece depois que um pull request é aprovado e mesclado.</li>
+  <li><code>pull_request</code> — quando você abre ou atualiza um PR <em>apontando para</em>
+  essas branches. Note a diferença: aqui o filtro é o <strong>destino</strong> do PR, não a
+  branch de origem. Um PR vindo de <code>feat/qualquer-coisa</code> para a
+  <code>main</code> dispara o workflow.</li>
+</ul>
+
+<p>É essa segunda regra que faz a proteção de branch funcionar. O código é verificado
+<strong>antes</strong> de entrar na <code>main</code>, não depois.</p>
+
+<div class="box">
+<span class="t">Outros gatilhos úteis</span>
+<pre style="margin-bottom:0"><code>on:
+  schedule:
+    - cron: "0 3 * * *"   <span class="cmt"># todo dia às 3h UTC</span>
+  workflow_dispatch:      <span class="cmt"># adiciona um botão "Run workflow" na interface</span></code></pre>
+</div>
+
+<h3>6.2 Job 1 — Lint</h3>
+
+<pre><code><span class="key">jobs</span>:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.8.4
+      - run: ruff check .</code></pre>
+
+<p>Lendo de cima para baixo: <code>lint</code> é o identificador interno do job (usado por
+outros jobs para referenciá-lo); <code>name</code> é o rótulo bonito na interface;
+<code>runs-on</code> pede uma máquina Linux ao GitHub.</p>
+
+<p>Os quatro steps, em ordem: baixa o código, instala o Python 3.12, instala o ruff numa
+versão fixa, e roda a verificação. O <code>ruff check .</code> examina todos os arquivos
+<code>.py</code> a partir do diretório atual. Achou problema de formatação ou import não
+usado, sai com código 1, e o job fica vermelho.</p>
+
+<p>Duas decisões de projeto valem ser notadas aqui. A primeira é a <strong>versão fixa</strong>
+(<code>ruff==0.8.4</code>): uma versão nova do ruff pode introduzir regras novas, e sem o pin
+o seu pipeline quebraria sozinho num dia em que você não mexeu em nada. A segunda é que este
+job vem <strong>primeiro</strong>, porque leva segundos e é a verificação mais barata que
+existe. Falhar cedo e barato é um princípio de projeto de pipeline.</p>
+
+<h3>6.3 Job 2 — Testes e cobertura</h3>
+
+<p>Este é o job mais denso do arquivo. Vamos em quatro partes.</p>
+
+<h4>A dependência</h4>
+
+<pre><code>  test:
+    name: Testes + Cobertura
+    runs-on: ubuntu-latest
+    needs: lint</code></pre>
+
+<p>O <code>needs: lint</code> é o que transforma jobs paralelos em uma corrente. Sem essa
+linha, <code>lint</code> e <code>test</code> rodariam ao mesmo tempo. Com ela,
+<code>test</code> só começa se <code>lint</code> tiver terminado com sucesso — e se o lint
+falhar, o test é marcado como <em>skipped</em> e nem consome máquina.</p>
+
+<h4>Os service containers</h4>
+
+<pre><code>    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: &gt;-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]</code></pre>
+
+<p>Aqui o GitHub sobe dois contêineres Docker ao lado do seu job: um PostgreSQL e um Redis.
+Eles nascem quando o job começa, ficam acessíveis em <code>localhost</code>, e são destruídos
+quando o job termina. É por isso que você não precisa de um banco "de verdade" hospedado em
+algum lugar só para rodar testes.</p>
+
+<p>O bloco <code>options</code> merece atenção especial, porque é a origem de um erro
+clássico. Um contêiner Postgres leva alguns segundos entre "iniciado" e "pronto para aceitar
+conexões". Sem o <em>healthcheck</em>, o seu job começaria a rodar imediatamente e o pytest
+tentaria conectar num banco que ainda está subindo — resultando em
+<code>connection refused</code>, de forma intermitente e difícil de reproduzir.</p>
+
+<p>O que as quatro linhas dizem: execute o comando <code>pg_isready</code> a cada 5
+segundos, desistindo de cada tentativa após 5 segundos, até 5 tentativas. O job só começa
+quando esse comando responder que o banco está pronto.</p>
+
+<div class="box warn">
+<span class="t">Erro clássico</span>
+<p><code>connection refused</code> no banco, falhando às vezes sim e às vezes não, quase
+sempre significa healthcheck ausente ou mal configurado. É o exemplo perfeito de bug de
+concorrência: não é o seu código que está errado, é a ordem em que as coisas ficaram
+prontas.</p>
+</div>
+
+<h4>As variáveis de ambiente</h4>
+
+<pre><code>    env:
+      SECRET_KEY: chave-de-teste
+      DEBUG: "False"
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
+      REDIS_URL: redis://localhost:6379/0
+      FOOTBALL_DATA_TOKEN: token-falso-para-testes</code></pre>
+
+<p>Lembre que a máquina é zerada e o <code>.env</code> não existe lá — ele está no
+<code>.gitignore</code>, e ainda bem. Este bloco recria as variáveis que a aplicação precisa
+para iniciar. Sem o <code>SECRET_KEY</code>, por exemplo, o Django nem carrega as
+configurações, e você veria um <code>KeyError: 'SECRET_KEY'</code>.</p>
+
+<p>Repare que o host no <code>DATABASE_URL</code> é <code>localhost</code>, e não
+<code>db</code> como no seu <code>docker-compose.yml</code>. Os service containers do GitHub
+publicam suas portas direto na máquina do runner, então o seu código os enxerga como se
+estivessem na mesma máquina.</p>
+
+<p>E repare no valor do token: <code>token-falso-para-testes</code>. Isso não é descuido —
+é requisito. Nenhum teste pode fazer chamada de rede real; as respostas da API externa são
+substituídas por dados capturados previamente. Se algum teste tentasse chamar a API de
+verdade, ele falharia com esse token, e é exatamente esse o objetivo: um teste que precisa
+de internet é um teste que vai falhar em algum momento por motivo alheio ao seu código.</p>
+
+<h4>Os steps e o gate de cobertura</h4>
+
+<pre><code>    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Rodar testes (gate de 80% de cobertura)
+        run: pytest
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage.xml</code></pre>
+
+<p>O <code>cache: pip</code> guarda as bibliotecas baixadas entre execuções. Sem isso, cada
+rodada baixaria Django, DRF e todo o resto da internet de novo. Costuma reduzir o tempo do
+job pela metade.</p>
+
+<p>O <code>if: always()</code> no último step é sutil e útil: por padrão, quando um step
+falha, os seguintes são pulados. Esse <code>always()</code> diz "guarde o relatório de
+cobertura mesmo se os testes falharam" — porque é justamente quando falha que você quer
+olhar o relatório.</p>
+
+<div class="box ok">
+<span class="t">Onde fica o gate de 80%</span>
+<p>Não está neste arquivo. Está no <code>pytest.ini</code>, na linha
+<code>--cov-fail-under=80</code>. O pytest sai com código de erro se a cobertura ficar
+abaixo disso, e o CI apenas reflete essa falha.</p>
+<p>A vantagem dessa escolha é grande: a regra é <strong>a mesma</strong> na sua máquina e no
+servidor. Você descobre que quebrou o gate rodando <code>pytest</code> localmente, em vez de
+descobrir dois minutos depois de um push.</p>
+</div>
+
+<h3>6.4 Job 3 — Deploy</h3>
+
+<pre><code>  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' &amp;&amp; github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Configure a plataforma de deploy aqui"</code></pre>
+
+<p>O <code>needs: test</code> fecha a corrente: lint → test → deploy. Nada é publicado sem
+ter passado pelas duas verificações anteriores.</p>
+
+<p>A linha <code>if:</code> é a mais importante e merece ser lida com calma. Ela impõe
+<strong>duas</strong> condições simultâneas:</p>
+
+<ul>
+  <li><code>github.ref == 'refs/heads/main'</code> — estamos na branch <code>main</code>.
+  Código em branch de feature nunca vai para produção.</li>
+  <li><code>github.event_name == 'push'</code> — o evento é um push, não um pull request.
+  Sem isso, abrir um PR publicaria código ainda em revisão.</li>
+</ul>
+
+<p>É por isso que, na tela de um pull request, o job Deploy aparece como
+<strong>Skipped</strong>. Não é erro — é a condição funcionando como projetada.</p>
+
+<p>O <code>${{ ... }}</code> que aparece em outros trechos é a sintaxe de expressão do
+Actions. Dentro dele você acessa contextos como <code>github</code> (dados do evento) e
+<code>secrets</code> (os valores criptografados).</p>
+
+<h4>Como fica quando o deploy estiver ativo</h4>
+
+<pre><code>    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - run: flyctl ssh console -C "python manage.py migrate --noinput"
+      - name: Smoke test
+        run: |
+          sleep 20
+          curl -sf https://SEU-APP.fly.dev/api/health/ || exit 1</code></pre>
+
+<p>Três coisas acontecem aqui, nesta ordem obrigatória: publica o código, aplica as
+migrations no banco de produção, e verifica que a aplicação respondeu.</p>
+
+<p>O <strong>smoke test</strong> é o passo que quase todo mundo esquece, e é o que separa um
+pipeline decorativo de um pipeline confiável. Sem ele, um deploy pode terminar "com sucesso"
+enquanto a aplicação está quebrada em produção — e você só descobre quando um usuário
+reclama. O <code>curl -sf</code> devolve código diferente de zero se a resposta não for
+bem-sucedida, e aquela regra invisível da seção 5 faz o resto: pipeline vermelho em trinta
+segundos.</p>
+
+<p>Sobre o <code>FLY_API_TOKEN</code>: o valor vem de
+<em>Settings → Secrets and variables → Actions</em>. Secrets são criptografados, não podem
+ser lidos de volta pela interface, e são automaticamente mascarados nos logs — se um comando
+imprimir o token por acidente, o GitHub substitui por <code>***</code>.</p>
+
+<h2 class="quebra">7. Construindo um pipeline do zero</h2>
+
+<p class="lead">Esta é a seção que responde ao "se eu tiver que fazer, eu não sei". Cinco
+etapas, cada uma adicionando uma capacidade. Faça num repositório de testes separado.</p>
+
+<h3>Etapa 1 — O "olá mundo"</h3>
+
+<p>Crie o arquivo <code>.github/workflows/ci.yml</code>. A pasta precisa ter exatamente esse
+nome; é onde o GitHub procura.</p>
+
+<pre><code>name: Meu primeiro pipeline
+
+on: [push]
+
+jobs:
+  ola:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "O pipeline rodou!"</code></pre>
+
+<p>Commite, envie, e abra a aba Actions. O objetivo aqui não é fazer algo útil — é ver o
+ciclo completo funcionando e entender que o arquivo é lido automaticamente. Não avance
+enquanto isso não estiver claro.</p>
+
+<h3>Etapa 2 — Trazer o código e a linguagem</h3>
+
+<pre><code>jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check .</code></pre>
+
+<p>Agora o pipeline faz algo real. Experimente deliberadamente: deixe um import não usado
+num arquivo <code>.py</code>, commite, e veja o job ficar vermelho. Depois corrija e veja
+ficar verde. <strong>Provocar a falha de propósito é o exercício mais valioso desta
+seção</strong> — é o que ensina a confiar no porteiro.</p>
+
+<h3>Etapa 3 — Rodar os testes com banco</h3>
+
+<pre><code>  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: &gt;-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: pytest</code></pre>
+
+<p>Três conceitos novos entram de uma vez: <code>needs</code> (a corrente),
+<code>services</code> (o banco temporário) e <code>env</code> (as variáveis que a máquina
+zerada não tem). Se algo falhar aqui, quase sempre é uma variável de ambiente faltando —
+leia a mensagem de erro procurando por um nome de variável.</p>
+
+<h3>Etapa 4 — O gate de cobertura</h3>
+
+<p>Não se escreve no YAML. No <code>pytest.ini</code>:</p>
+
+<pre><code>[pytest]
+addopts =
+    --cov=apps
+    --cov-report=term-missing
+    --cov-fail-under=80</code></pre>
+
+<p>O <code>pytest</code> do step anterior já passa a respeitar isso, sem nenhuma mudança no
+workflow. Vale internalizar o princípio geral: <strong>a regra mora na ferramenta, o CI só
+executa a ferramenta</strong>. Isso mantém local e servidor idênticos, e evita que seu YAML
+vire um depósito de configuração.</p>
+
+<h3>Etapa 5 — O deploy condicional</h3>
+
+<pre><code>  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' &amp;&amp; github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "publicar aqui"
+        env:
+          TOKEN: ${{ secrets.MEU_TOKEN }}</code></pre>
+
+<p>Comece com o <code>echo</code> como placeholder, exatamente como está no seu projeto.
+Confirme que a condição funciona — que ele roda em push na main e é pulado em PR — antes de
+colocar o comando de publicação de verdade. Depurar a condição e o deploy ao mesmo tempo é
+pedir para sofrer.</p>
+
+<div class="box">
+<span class="t">A regra de ouro</span>
+<p>Faça na mão uma vez antes de automatizar. Publique manualmente pelo terminal, entenda
+cada comando, veja a aplicação no ar. Só então transcreva para o YAML. Automatizar um
+processo que você nunca executou é a receita para não saber depurar quando quebrar.</p>
+</div>
+
+<h2 class="quebra">8. Quando fica vermelho</h2>
+
+<p>Vai ficar. Faz parte do processo, e não é sinal de que você errou — é o porteiro fazendo
+o trabalho dele. O que importa é saber ler.</p>
+
+<h3>Como investigar</h3>
+
+<ol>
+  <li><strong>Abra a aba Actions e clique no job vermelho.</strong> Cada step vira uma linha
+  expansível com o log completo. O step que falhou tem um X.</li>
+  <li><strong>Leia de baixo para cima.</strong> A mensagem final costuma ser a causa; o resto
+  é ruído acumulado. Essa é a técnica mais subestimada de depuração.</li>
+  <li><strong>Reproduza localmente antes de tentar consertar.</strong> Rode o mesmo comando
+  na sua máquina. Se passa local e falha no CI, a diferença está no ambiente: variável
+  faltando, versão diferente, banco não pronto.</li>
+</ol>
+
+<div class="box warn">
+<span class="t">O antipadrão</span>
+<p>Commitar às cegas para "ver se passa agora" desperdiça tempo, polui o histórico com
+mensagens como <em>"tenta de novo"</em>, e não ensina nada. Se você não sabe por que
+falhou, ainda não é hora de commitar.</p>
+</div>
+
+<h3>Os erros mais comuns</h3>
+
+<table>
+<tr><th style="width:38%">Sintoma</th><th>Causa provável</th></tr>
+<tr><td><code>KeyError: 'SECRET_KEY'</code></td><td>Variável faltando no bloco <code>env:</code> do job.</td></tr>
+<tr><td><code>connection refused</code> no banco</td><td>Falta o healthcheck; os testes começaram antes do Postgres ficar pronto.</td></tr>
+<tr><td><code>relation ... does not exist</code></td><td>Migration não commitada. Rode <code>makemigrations</code> e versione o arquivo gerado.</td></tr>
+<tr><td>Cobertura abaixo de 80%</td><td>Código novo sem teste. Rode <code>pytest --cov-report=term-missing</code> e veja as linhas descobertas.</td></tr>
+<tr><td>Passa local, falha no CI</td><td>Teste dependente de ordem, de cache sujo ou de arquivo que só existe na sua máquina.</td></tr>
+<tr><td>O deploy não roda</td><td>A condição <code>if:</code> não foi satisfeita — provavelmente você não está na <code>main</code>, ou o evento é <code>pull_request</code>.</td></tr>
+<tr><td><code>Bad credentials</code></td><td>Secret com nome errado ou token expirado.</td></tr>
+<tr><td><code>found character '\t'</code></td><td>TAB no YAML. Troque por espaços.</td></tr>
+</table>
+
+<h2>9. Referência rápida</h2>
+
+<h3>Esqueleto mínimo</h3>
+
+<pre><code>name: &lt;nome que aparece na aba Actions&gt;
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  &lt;id-do-job&gt;:
+    name: &lt;rótulo na interface&gt;
+    runs-on: ubuntu-latest
+    needs: &lt;job anterior&gt;          <span class="cmt"># opcional: cria dependência</span>
+    if: &lt;condição&gt;                 <span class="cmt"># opcional: executa só se verdadeiro</span>
+    services: { ... }              <span class="cmt"># opcional: bancos temporários</span>
+    env: { ... }                   <span class="cmt"># opcional: variáveis do job</span>
+    steps:
+      - uses: &lt;action&gt;@&lt;versão&gt;
+        with: { ... }
+      - name: &lt;descrição&gt;
+        run: &lt;comando de shell&gt;</code></pre>
+
+<h3>Actions de uso frequente</h3>
+
+<table>
+<tr><th style="width:38%">Action</th><th>Para quê</th></tr>
+<tr><td><code>actions/checkout@v4</code></td><td>Baixa o repositório para o runner. Praticamente todo job precisa.</td></tr>
+<tr><td><code>actions/setup-python@v5</code></td><td>Instala uma versão do Python. Use <code>cache: pip</code>.</td></tr>
+<tr><td><code>actions/upload-artifact@v4</code></td><td>Guarda arquivos gerados (relatórios, builds) para download.</td></tr>
+<tr><td><code>actions/cache@v4</code></td><td>Cache genérico, quando o setup-python não basta.</td></tr>
+</table>
+
+<h3>Expressões úteis</h3>
+
+<table>
+<tr><th style="width:44%">Expressão</th><th>Significado</th></tr>
+<tr><td><code>github.ref</code></td><td>A referência completa. Ex.: <code>refs/heads/main</code>.</td></tr>
+<tr><td><code>github.event_name</code></td><td><code>push</code>, <code>pull_request</code>, <code>schedule</code>...</td></tr>
+<tr><td><code>github.sha</code></td><td>O hash do commit que disparou o workflow.</td></tr>
+<tr><td><code>secrets.NOME</code></td><td>Um secret do repositório.</td></tr>
+<tr><td><code>always()</code></td><td>Verdadeiro mesmo se um step anterior falhou.</td></tr>
+<tr><td><code>success()</code> / <code>failure()</code></td><td>Verdadeiro conforme o resultado até ali.</td></tr>
+</table>
+
+<h3>Termos para pesquisar</h3>
+
+<p>Saber buscar o termo certo é metade da habilidade. Estes são os que resolvem a maior parte
+das dúvidas:</p>
+
+<p><code>github actions workflow syntax</code> · <code>github actions service containers postgres</code> ·
+<code>github actions secrets encrypted</code> · <code>pytest cov fail under</code> ·
+<code>github actions cache pip</code> · <code>github actions branch protection required checks</code> ·
+<code>github actions debug failed workflow</code> · <code>postgres service container health check</code></p>
+
+<p>A documentação oficial fica em <code>docs.github.com/actions</code> e é boa — comece por
+ela antes de procurar tutoriais.</p>
+
+<div class="box ok">
+<span class="t">Uma última recomendação</span>
+<p>Crie um repositório separado só para experimentar com o GitHub Actions. Commitar quinze
+vezes seguidas para entender a sintaxe é absolutamente normal — mas é melhor fazer isso
+longe do repositório que vai para o seu currículo.</p>
+</div>
+
+<div class="fim">
+Material de apoio ao projeto Simulador Probabilístico do Campeonato Brasileiro.<br>
+Os nomes de menu e comandos do GitHub mudam com o tempo — confira sempre a documentação
+oficial em docs.github.com/actions.
+</div>
+
+</body>
+</html>
